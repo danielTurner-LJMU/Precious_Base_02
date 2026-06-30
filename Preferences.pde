@@ -15,6 +15,11 @@ String labelFilePath = "participantLabel.txt"; // holds fileNameAppend between r
 String parentFolderPath;   // absolute path to the selected data folder
 String folderName = "(none selected)"; // last path segment, for display
 
+// Set by validateDataFolder() (per-program, see SampleData.pde) when the
+// expected data isn't found at Confirm time. Read by IntroScreen.draw() —
+// console output alone is useless in an exported, distributed application.
+String dataValidationError = null;
+
 
 // Loads stored settings: the data folder path and the participant label
 void initPreferences() {
@@ -50,6 +55,7 @@ void folderSelected(File selection) {
     return;
   }
 
+  dataValidationError = null; // a fresh folder choice deserves a fresh attempt
   parentFolderPath = selection.getAbsolutePath();
   folderName = selection.getName();
   println("User selected " + parentFolderPath);

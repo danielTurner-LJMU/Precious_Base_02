@@ -10,6 +10,12 @@
  * TEMPLATE: initMainControls() contains the SAMPLE control set. Replace the
  * one-liners in the CONTROLS section with your program's controls — the
  * INPUT / ARTWORK FORMAT / OUTPUT sections should carry across unchanged.
+ *
+ * Also carries across unchanged: the registerMethod("post", this) call in
+ * initGUI() (required for F12 screenshots, see Screenshots.pde), and
+ * confirm() / setFormatRadioLocked() / updateExportLockState(), which
+ * implement the data-validation and load-locking contract described in
+ * SampleData.pde and Render.pde's DATA LOADING section.
  */
 
 ControlP5 cp5;
@@ -25,6 +31,12 @@ void initGUI() {
   labelFontMono  = createFont("Inconsolata-Bold.ttf", 12, true);
   cp5FontMain = new ControlFont(labelFont14);
   cp5FontMono = new ControlFont(labelFontMono);
+
+  // Registered AFTER ControlP5's own constructor, so this "post" hook runs
+  // strictly after ControlP5's internal widget rendering for the frame —
+  // needed so F12 screenshots (Screenshots.pde) capture the GUI controls
+  // too, not just whatever was drawn before ControlP5's own draw pass.
+  registerMethod("post", this);
 }
 
 
@@ -145,26 +157,55 @@ void initMainControls() {
 
 /// ---- RADIO CALLBACKS ---- ///
 
-// Artwork format selected — rebuilds the art buffer at the new aspect
+// Artwork format selected — rebuilds the art buffer at the new aspect.
+// Export unlocking is handled generically by updateExportLockState(),
+// called every frame from MainScreen.draw() — not here.
 void artworkFormat(int a) {
   // Clicking an already-selected radio item returns -1; ignore it
   if (a == -1) return;
+  if (dataLoading) return; // radio is locked while loading, but guard regardless
 
   if ((a - 1 != formatSelect) || !bufferCreated) {
-    boolean firstBuffer = !bufferCreated;
     formatSelect = a - 1;
     createArtBuffer();
     layoutSampleObjects(); // TEMPLATE: real programs recompute layout here
     markArtDirty();
-
-    // First buffer made — exports become meaningful, unlock them
-    if (firstBuffer) {
-      controllerLocked("saveTiff", false);
-      controllerLocked("savePdf",  false);
-      controllerLocked("saveSvg",  false);
-      controllerLocked("saveAll",  false);
-    }
   }
+}
+
+// Locks/unlocks the format radio's individual items — used to prevent
+// choosing a format (and so creating a buffer) before data has finished
+// loading. Called every frame from MainScreen.draw(); only acts on actual
+// transitions, mirroring updateExportLockState()'s guard below.
+boolean formatRadioLocked = false; // matches the initial unlocked state set in initMainControls()
+
+void setFormatRadioLocked(boolean locked) {
+  if (rFormat == null || locked == formatRadioLocked) return;
+
+  for (Toggle t : rFormat.getItems()) {
+    t.setLock(locked);
+    t.setColorBackground(locked ? color(200) : cGrey);
+    t.setColorForeground(locked ? color(200) : cTheme);
+    t.setColorActive(locked ? color(200) : cTheme);
+  }
+  formatRadioLocked = locked;
+}
+
+// Exports are only meaningful once a buffer exists AND data has finished
+// loading — recomputed every frame from MainScreen.draw() rather than
+// once in artworkFormat(), so the lock state is correct regardless of
+// whether a format gets chosen before or after loading completes.
+boolean exportsLocked = true; // matches the initial locked state set in initMainControls()
+
+void updateExportLockState() {
+  boolean shouldLock = !(bufferCreated && !dataLoading);
+  if (shouldLock == exportsLocked) return;
+
+  controllerLocked("saveTiff", shouldLock);
+  controllerLocked("savePdf",  shouldLock);
+  controllerLocked("saveSvg",  shouldLock);
+  controllerLocked("saveAll",  shouldLock);
+  exportsLocked = shouldLock;
 }
 
 // Export size selected — stored only; used at export time
@@ -225,6 +266,8 @@ void regenerate() {
 }
 
 void confirm() {
+  dataValidationError = null;
+  if (!validateDataFolder()) return; // stay on intro screen; error shown by IntroScreen.draw()
   setScreen(SCREEN_MAIN);
 }
 

@@ -139,6 +139,54 @@ PVector screenToUnits(float mx, float my) {
 }
 
 
+/// ---- DATA LOADING (generic chunked-load support) ---- ///
+//
+// Some programs need to read enough external data that doing it all in one
+// go inside MainScreen.enter() would freeze the sketch — Processing is
+// single-threaded, so nothing redraws until enter() returns. Rather than
+// move that work to a background Java thread (ControlP5/PGraphics calls
+// aren't safe off the main thread, and the resulting concurrency bugs are
+// hard to debug in the Processing IDE), slow loading is spread across
+// frames instead:
+//
+//   - set dataLoading = true wherever the per-program load begins
+//   - implement stepDataLoad(budgetMs) (SampleData.pde) to do a bounded
+//     amount of work each call, updating loadingLabel / loadingProgress as
+//     it goes, and setting dataLoading = false once complete
+//
+// MainScreen.draw() (Screens.pde) calls stepDataLoad() and
+// drawLoadingNotice() automatically whenever dataLoading is true, and
+// locks the format radio and export buttons until it's false — programs
+// that never set dataLoading never pay for any of this.
+
+boolean dataLoading     = false;
+String  loadingLabel    = "LOADING...";
+float   loadingProgress = 0; // 0..1, drawn as a fill bar
+
+void drawLoadingNotice() {
+  float px = ((width - guiWidth) / 2.0) + guiWidth;
+  float py = height / 2.0;
+
+  textFont(labelFontMono);
+  textAlign(CENTER, CENTER);
+  fill(cGrey);
+  textSize(16);
+  text(loadingLabel, px, py - 24);
+
+  float barW = 320, barH = 8;
+  float barX = px - barW / 2.0, barY = py + 8;
+
+  noFill();
+  stroke(cGrey);
+  strokeWeight(1);
+  rect(barX, barY, barW, barH);
+
+  noStroke();
+  fill(cTheme);
+  rect(barX, barY, barW * constrain(loadingProgress, 0, 1), barH);
+}
+
+
 /// ---- HOVER / TOOLTIP ---- ///
 
 SampleObject hoveredObject = null;

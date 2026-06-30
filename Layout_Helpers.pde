@@ -23,6 +23,7 @@ color cBlack    = #282829; // near-black background
 color cTheme    = #FAEB9F; // theme yellow
 color cGrey     = #AAC0C1; // soft grey-blue
 color cWhite    = color(255);
+color cWarning  = #B5474B; // utility-screen warnings only — never part of the artwork palette
 
 // Sample artwork colours (template content only)
 color cPink     = #F229AC;

@@ -7,10 +7,16 @@
  *
  * In a real program this tab becomes the data_*.pde files: JSON parsing of
  * the selected Facebook export folder and the DataObject classes built
- * from it. The only contract the rest of the template relies on:
+ * from it. The contract the rest of the template relies on:
  *
  *   - a list of objects with  name / visible / hit(x,y) / tooltipLines()
  *   - positions expressed in MILLIMETRES within artMM() bounds
+ *   - validateDataFolder() — confirms the expected files exist before the
+ *     intro screen's Confirm button is allowed to proceed
+ *   - stepDataLoad(budgetMs) — for programs with slow external data, does
+ *     a bounded amount of loading work per call (see Render.pde's DATA
+ *     LOADING section for the full pattern). The placeholder content loads
+ *     instantly, so this is a one-line no-op below.
  */
 
 final int KIND_SQUARE = 0;
@@ -87,4 +93,23 @@ void layoutSampleObjects() {
     o.x = random(marginMM, mm.x - marginMM);
     o.y = random(marginMM, mm.y - marginMM);
   }
+}
+
+
+// TEMPLATE: real programs with an external data dependency override this
+// to confirm the expected files/folders exist, returning false and
+// setting dataValidationError (Preferences.pde) with a participant-
+// readable explanation if not. Called from confirm() (GUI.pde) before
+// ever leaving the intro screen. The placeholder template has no real
+// data dependency, so this always passes.
+boolean validateDataFolder() {
+  return true;
+}
+
+// TEMPLATE: real programs with slow external data override this to do a
+// bounded amount of work per call (budgetMs), updating loadingProgress as
+// they go, and setting dataLoading = false once complete — see Render.pde's
+// DATA LOADING section. The placeholder content has nothing slow to do.
+void stepDataLoad(int budgetMs) {
+  dataLoading = false;
 }

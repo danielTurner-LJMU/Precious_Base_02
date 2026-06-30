@@ -99,6 +99,18 @@ class IntroScreen implements Screen {
       text(folderName, canvasCenterX, 610);
     }
 
+    // Validation error — set by validateDataFolder() (per-program) when
+    // Confirm is pressed and the expected data isn't found. A dedicated
+    // warning colour, distinct from the artwork palette, since this is a
+    // utility screen rather than the artwork itself. Sits between the
+    // title and the Select Data Folder button (which starts at y 500).
+    if (dataValidationError != null) {
+      textFont(labelFontMono);
+      textSize(13);
+      fill(cWarning);
+      text(dataValidationError, canvasCenterX, 460);
+    }
+
     // Participant label — plain text, bottom of screen.
     // Dimmed when the edit field is open so the field reads as the active state.
     textFont(labelFontMono);
@@ -137,18 +149,11 @@ class MainScreen implements Screen {
     resizeCanvas(1500, 1000);
 
     // TEMPLATE: real programs load + parse data files here using
-    // parentFolderPath. The template just builds placeholder objects.
+    // parentFolderPath, setting dataLoading = true first if the load is
+    // slow enough to need spreading across frames (see Render.pde's DATA
+    // LOADING section and SampleData.pde's stepDataLoad()). The template
+    // just builds placeholder objects, which load instantly.
     buildSampleObjects();
-
-    if (!built) {
-      initMainControls();
-      built = true;
-    }
-
-    // NOTE: no format is pre-selected. ControlP5's activate() doesn't
-    // reliably broadcast, and a pre-lit radio with no buffer is misleading.
-    // The user picks a format to create the first buffer; until then the
-    // preview area shows a prompt (see draw below).
   }
 
   public void exit() {}
@@ -156,7 +161,22 @@ class MainScreen implements Screen {
   public void draw() {
     background(0);
 
-    if (bufferCreated) {
+    // GUI is built immediately so the controls panel is visible even while
+    // a slow data load is still running — only the readouts that depend
+    // on the load's result update later, once the per-program code does so.
+    if (!built) {
+      initMainControls();
+      built = true;
+    }
+
+    // Format and exports stay locked until data is ready — otherwise a
+    // buffer could be created (and exported) against incomplete data.
+    setFormatRadioLocked(dataLoading);
+    updateExportLockState();
+
+    if (dataLoading) {
+      stepDataLoad(25); // ms budget per frame — see Render.pde
+    } else if (bufferCreated) {
       handleBufferRedraw();  // debounced re-render of the art buffer
       drawPreview();         // pan/zoom blit of buffer to the stage
       handleNotices();       // RENDERING / EXPORTING notices on top
@@ -182,12 +202,19 @@ class MainScreen implements Screen {
 
     drawOverlays();
 
+    // Loading notice — drawn after the GUI panel so it sits cleanly within
+    // the preview area, not under it.
+    if (dataLoading) drawLoadingNotice();
+
     // Lazy pop-out visibility — on first click the child frame isn't ready
     // yet, so poll until isReady(), then show it.
     if (objFrame != null && objFrame.isReady() && objFramePendingShow) {
       objFrame.getSurface().setVisible(true);
       objFramePendingShow = false;
     }
+
+    // Screenshots.pde — must run LAST so save() captures the fully-drawn frame
+    handleScreenshot();
   }
 
   public void mousePressed() {
@@ -203,6 +230,6 @@ class MainScreen implements Screen {
   }
 
   public void keyPressed() {
-    // TEMPLATE: hidden key commands (e.g. opacity test exports) go here
+    handleScreenshotKey(); // Screenshots.pde — F12 opens the note prompt
   }
 }

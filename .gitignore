@@ -19,3 +19,6 @@ x - output/**
 # Local data reference — stores the filepath to the user's selected data folder,
 # never the data itself, but still shouldn't be committed.
 data/preciousPrefs.txt
+
+# Documentation screenshots (F12) — working progress shots, not source data.
+screenshots/**
